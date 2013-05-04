@@ -17,6 +17,8 @@ package sdl
 // #include <SDL_image.h>
 // static void SetError(const char* description){SDL_SetError("%s",description);}
 // static int __SDL_SaveBMP(SDL_Surface *surface, const char *file) { return SDL_SaveBMP(surface, file); }
+// extern int __eventFilter(SDL_Event *event);
+// static void setupEventFilter() { SDL_SetEventFilter((SDL_EventFilter)__eventFilter); }
 import "C"
 
 import (
@@ -29,6 +31,10 @@ import (
 )
 
 type cast unsafe.Pointer
+
+var eventFilter = func(event *Event) bool {
+	return true
+}
 
 // Mutex for serialization of access to certain SDL functions.
 //
@@ -124,6 +130,7 @@ func Init(flags uint32) int {
 		}
 	}
 
+	C.setupEventFilter()
 	GlobalMutex.Unlock()
 	return status
 }
@@ -697,6 +704,20 @@ func GetKeyName(key Key) string {
 // ======
 // Events
 // ======
+
+//export __eventFilter
+func __eventFilter(event *C.SDL_Event) C.int {
+	if eventFilter((*Event)(cast(event))) {
+		return 1
+	}
+	return 0
+}
+
+func SetEventFilter(f func(event *Event) bool) {
+	GlobalMutex.Lock()
+	eventFilter = f
+	GlobalMutex.Unlock()
+}
 
 // Polls for currently pending events
 func (event *Event) poll() bool {
