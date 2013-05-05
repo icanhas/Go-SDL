@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
-	"threadlock"
+	"bitbucket.org/paperwing/junk/threadlock"
 	"time"
 	"unsafe"
 )
