@@ -10,11 +10,12 @@ An interface to low-level SDL sound functions.
 */
 package audio
 
-// #cgo pkg-config: sdl
+// #cgo CFLAGS: -D_REENTRANT
+// #cgo LDFLAGS: -lSDL
 // #cgo freebsd LDFLAGS: -lrt
 // #cgo linux LDFLAGS: -lrt
-// #cgo windows LDFLAGS: -lpthread
-// #include <SDL_audio.h>
+// #cgo windows LDFLAGS: -lpthread -lwinmm -lgdi32 -ldxguid
+// #include <SDL/SDL_audio.h>
 // #include "callback.h"
 import "C"
 import "unsafe"

@@ -1,7 +1,7 @@
 package sdl
 
-// #cgo pkg-config: sdl
-// #include <SDL.h>
+// #cgo CFLAGS: -D_REENTRANT
+// #include <SDL/SDL.h>
 import "C"
 
 const (
