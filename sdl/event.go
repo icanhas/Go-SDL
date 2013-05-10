@@ -1,6 +1,8 @@
 package sdl
 
-import "time"
+import (
+	"time"
+)
 
 var events chan interface{} = make(chan interface{})
 
@@ -22,7 +24,7 @@ func pollEvents() {
 	event := &Event{}
 
 	for {
-		for event.poll() {
+		for event.pollThread() {
 			switch event.Type {
 			case QUIT:
 				events <- *(*QuitEvent)(cast(event))
@@ -58,8 +60,4 @@ func pollEvents() {
 
 		time.Sleep(poll_interval_ms * 1e6)
 	}
-}
-
-func init() {
-	go pollEvents()
 }

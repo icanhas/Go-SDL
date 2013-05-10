@@ -17,8 +17,6 @@ package sdl
 // #include <SDL_image.h>
 // static void SetError(const char* description){SDL_SetError("%s",description);}
 // static int __SDL_SaveBMP(SDL_Surface *surface, const char *file) { return SDL_SaveBMP(surface, file); }
-// extern int __eventFilter(SDL_Event *event);
-// static void setupEventFilter() { SDL_SetEventFilter((SDL_EventFilter)__eventFilter); }
 import "C"
 
 import (
@@ -26,15 +24,12 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"bitbucket.org/paperwing/junk/threadlock"
 	"time"
 	"unsafe"
 )
 
 type cast unsafe.Pointer
-
-var eventFilter = func(event *Event) bool {
-	return true
-}
 
 // Mutex for serialization of access to certain SDL functions.
 //
@@ -116,22 +111,43 @@ func GoSdlVersion() string {
 	return "⚛SDL bindings 1.0"
 }
 
+var (
+	startPoll sync.Once
+	thread    threadlock.L
+)
+
+func SetThreadlock(tl threadlock.L) {
+	thread = tl
+}
+
 // Initializes SDL.
-func Init(flags uint32) int {
+func Init(flags uint32, tl threadlock.L) int {
+	thread = tl
+
 	GlobalMutex.Lock()
-	status := int(C.SDL_Init(C.Uint32(flags)))
+
+	var status int
+	thread.Run(func() {
+		status = int(C.SDL_Init(C.Uint32(flags)))
+	})
 	if (status != 0) && (runtime.GOOS == "darwin") && (flags&INIT_VIDEO != 0) {
 		if os.Getenv("SDL_VIDEODRIVER") == "" {
 			os.Setenv("SDL_VIDEODRIVER", "x11")
-			status = int(C.SDL_Init(C.Uint32(flags)))
+			thread.Run(func() {
+				status = int(C.SDL_Init(C.Uint32(flags)))
+			})
 			if status != 0 {
 				os.Setenv("SDL_VIDEODRIVER", "")
 			}
 		}
 	}
 
-	C.setupEventFilter()
 	GlobalMutex.Unlock()
+
+	startPoll.Do(func() {
+		go pollEvents()
+	})
+
 	return status
 }
 
@@ -152,11 +168,16 @@ func Quit() {
 // Initializes subsystems.
 func InitSubSystem(flags uint32) int {
 	GlobalMutex.Lock()
-	status := int(C.SDL_InitSubSystem(C.Uint32(flags)))
+	var status int
+	thread.Run(func() {
+		status = int(C.SDL_InitSubSystem(C.Uint32(flags)))
+	})
 	if (status != 0) && (runtime.GOOS == "darwin") && (flags&INIT_VIDEO != 0) {
 		if os.Getenv("SDL_VIDEODRIVER") == "" {
 			os.Setenv("SDL_VIDEODRIVER", "x11")
-			status = int(C.SDL_InitSubSystem(C.Uint32(flags)))
+			thread.Run(func() {
+				status = int(C.SDL_InitSubSystem(C.Uint32(flags)))
+			})
 			if status != 0 {
 				os.Setenv("SDL_VIDEODRIVER", "")
 			}
@@ -221,8 +242,16 @@ var currentVideoSurface *Surface = nil
 // returns a corresponding surface.  You don't need to call the Free method
 // of the returned surface, as it will be done automatically by sdl.Quit.
 func SetVideoMode(w int, h int, bpp int, flags uint32) *Surface {
+	var screen *Surface
+	thread.Run(func() {
+		screen = setVideoMode(w, h, bpp, flags)
+	})
+	return screen
+}
+
+func setVideoMode(w int, h int, bpp int, flags uint32) *Surface {
 	GlobalMutex.Lock()
-	var screen = C.SDL_SetVideoMode(C.int(w), C.int(h), C.int(bpp), C.Uint32(flags))
+	screen := C.SDL_SetVideoMode(C.int(w), C.int(h), C.int(bpp), C.Uint32(flags))
 	currentVideoSurface = wrap(screen)
 	GlobalMutex.Unlock()
 	return currentVideoSurface
@@ -705,20 +734,6 @@ func GetKeyName(key Key) string {
 // Events
 // ======
 
-//export __eventFilter
-func __eventFilter(event *C.SDL_Event) C.int {
-	if eventFilter((*Event)(cast(event))) {
-		return 1
-	}
-	return 0
-}
-
-func SetEventFilter(f func(event *Event) bool) {
-	GlobalMutex.Lock()
-	eventFilter = f
-	GlobalMutex.Unlock()
-}
-
 // Polls for currently pending events
 func (event *Event) poll() bool {
 	GlobalMutex.Lock()
@@ -734,6 +749,16 @@ func (event *Event) poll() bool {
 	GlobalMutex.Unlock()
 
 	return ret != 0
+}
+
+// pollThread does the polling of events in the thread associated with
+// the global threadlock.
+func (event *Event) pollThread() bool {
+	var status bool
+	thread.Run(func() {
+		status = event.poll()
+	})
+	return status
 }
 
 // =====
