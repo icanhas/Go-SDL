@@ -17,7 +17,6 @@ package sdl
 //
 // #include <SDL/SDL.h>
 // static void SetError(const char* description){SDL_SetError("%s",description);}
-// static int __SDL_SaveBMP(SDL_Surface *surface, const char *file) { return SDL_SaveBMP(surface, file); }
 import "C"
 
 import (
@@ -579,30 +578,6 @@ func MapRGBA(format *PixelFormat, r, g, b, a uint8) uint32 {
 // Gets RGBA values from a pixel in the specified pixel format.
 func GetRGBA(color uint32, format *PixelFormat, r, g, b, a *uint8) {
 	C.SDL_GetRGBA(C.Uint32(color), (*C.SDL_PixelFormat)(cast(format)), (*C.Uint8)(r), (*C.Uint8)(g), (*C.Uint8)(b), (*C.Uint8)(a))
-}
-
-// Loads Surface from file (using IMG_Load).
-func Load(file string) *Surface {
-	GlobalMutex.Lock()
-
-	cfile := C.CString(file)
-	var screen = C.IMG_Load(cfile)
-	C.free(unsafe.Pointer(cfile))
-
-	GlobalMutex.Unlock()
-
-	return wrap(screen)
-}
-
-// SaveBMP saves the src surface as a Windows BMP to file.
-func (src *Surface) SaveBMP(file string) int {
-	GlobalMutex.Lock()
-	cfile := C.CString(file)
-	// SDL_SaveBMP is a macro.
-	res := int(C.__SDL_SaveBMP(src.cSurface, cfile))
-	C.free(unsafe.Pointer(cfile))
-	GlobalMutex.Unlock()
-	return res
 }
 
 // Creates an empty Surface.
