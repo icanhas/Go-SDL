@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
-	"bitbucket.org/paperwing/junk/threadlock"
 	"time"
 	"unsafe"
 )
@@ -111,29 +110,51 @@ func GoSdlVersion() string {
 	return "⚛SDL bindings 1.0"
 }
 
+// A threadlock contains a queue of functions to execute on a given OS thread.
+type threadlock chan func()
+
 var (
 	startPoll sync.Once
-	thread    threadlock.L
+	thread    threadlock
 )
 
-func SetThreadlock(tl threadlock.L) {
+// lock is a blocking call that consumes the queue, executing all the functions until the channel is closed.
+func (t threadlock) lock() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	for f := range t {
+		f()
+	}
+}
+
+// run adds a function to the queue and blocks until it is executed.
+func (t threadlock) run(f func()) {
+	done := make(chan bool, 1)
+	t <- func() {
+		f()
+		done <- true
+	}
+	<-done
+}
+
+func SetThreadlock(tl threadlock) {
 	thread = tl
 }
 
 // Initializes SDL.
-func Init(flags uint32, tl threadlock.L) int {
+func Init(flags uint32, tl threadlock) int {
 	thread = tl
 
 	GlobalMutex.Lock()
 
 	var status int
-	thread.Run(func() {
+	thread.run(func() {
 		status = int(C.SDL_Init(C.Uint32(flags)))
 	})
 	if (status != 0) && (runtime.GOOS == "darwin") && (flags&INIT_VIDEO != 0) {
 		if os.Getenv("SDL_VIDEODRIVER") == "" {
 			os.Setenv("SDL_VIDEODRIVER", "x11")
-			thread.Run(func() {
+			thread.run(func() {
 				status = int(C.SDL_Init(C.Uint32(flags)))
 			})
 			if status != 0 {
@@ -169,13 +190,13 @@ func Quit() {
 func InitSubSystem(flags uint32) int {
 	GlobalMutex.Lock()
 	var status int
-	thread.Run(func() {
+	thread.run(func() {
 		status = int(C.SDL_InitSubSystem(C.Uint32(flags)))
 	})
 	if (status != 0) && (runtime.GOOS == "darwin") && (flags&INIT_VIDEO != 0) {
 		if os.Getenv("SDL_VIDEODRIVER") == "" {
 			os.Setenv("SDL_VIDEODRIVER", "x11")
-			thread.Run(func() {
+			thread.run(func() {
 				status = int(C.SDL_InitSubSystem(C.Uint32(flags)))
 			})
 			if status != 0 {
@@ -243,7 +264,7 @@ var currentVideoSurface *Surface = nil
 // of the returned surface, as it will be done automatically by sdl.Quit.
 func SetVideoMode(w int, h int, bpp int, flags uint32) *Surface {
 	var screen *Surface
-	thread.Run(func() {
+	thread.run(func() {
 		screen = setVideoMode(w, h, bpp, flags)
 	})
 	return screen
@@ -731,7 +752,7 @@ func (event *Event) poll() bool {
 // the global threadlock.
 func (event *Event) pollThread() bool {
 	var status bool
-	thread.Run(func() {
+	thread.run(func() {
 		status = event.poll()
 	})
 	return status
