@@ -110,51 +110,63 @@ func GoSdlVersion() string {
 	return "⚛SDL bindings 1.0"
 }
 
-// A threadlock contains a queue of functions to execute on a given OS thread.
-type threadlock chan func()
+// A Threadbound is a queue of functions bound to execute on one and only
+// one OS thread.
+type Threadbound chan func()
 
 var (
 	startPoll sync.Once
-	thread    threadlock
+	thread    Threadbound
 )
 
-// lock is a blocking call that consumes the queue, executing all the functions until the channel is closed.
-func (t threadlock) lock() {
+// Drain blocks the calling goroutine until tb is closed, and any
+// functions that are queued will be executed on that goroutine's system
+// thread.
+func (tb Threadbound) Drain() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	for f := range t {
+	for f := range tb {
 		f()
 	}
 }
 
-// run adds a function to the queue and blocks until it is executed.
-func (t threadlock) run(f func()) {
-	done := make(chan bool, 1)
-	t <- func() {
+// Run adds a function to the queue and blocks until it is executed.
+// If Run is called on an uninitialised Threadbound, f will be called
+// immediately in the calling goroutine.
+func (tb Threadbound) Run(f func()) {
+	if tb != nil {
+		done := make(chan bool, 1)
+		tb <- func() {
+			f()
+			done <- true
+		}
+		<-done
+	} else {
 		f()
-		done <- true
 	}
-	<-done
 }
 
-func SetThreadlock(tl threadlock) {
-	thread = tl
+// Close closes tb and allows any blocked Drain calls to return.
+func (tb Threadbound) Close() {
+	close(tb)
+}
+
+func SetThreadbound(tb Threadbound) {
+	thread = tb
 }
 
 // Initializes SDL.
-func Init(flags uint32, tl threadlock) int {
-	thread = tl
-
+func Init(flags uint32) int {
 	GlobalMutex.Lock()
 
 	var status int
-	thread.run(func() {
+	thread.Run(func() {
 		status = int(C.SDL_Init(C.Uint32(flags)))
 	})
 	if (status != 0) && (runtime.GOOS == "darwin") && (flags&INIT_VIDEO != 0) {
 		if os.Getenv("SDL_VIDEODRIVER") == "" {
 			os.Setenv("SDL_VIDEODRIVER", "x11")
-			thread.run(func() {
+			thread.Run(func() {
 				status = int(C.SDL_Init(C.Uint32(flags)))
 			})
 			if status != 0 {
@@ -190,13 +202,13 @@ func Quit() {
 func InitSubSystem(flags uint32) int {
 	GlobalMutex.Lock()
 	var status int
-	thread.run(func() {
+	thread.Run(func() {
 		status = int(C.SDL_InitSubSystem(C.Uint32(flags)))
 	})
 	if (status != 0) && (runtime.GOOS == "darwin") && (flags&INIT_VIDEO != 0) {
 		if os.Getenv("SDL_VIDEODRIVER") == "" {
 			os.Setenv("SDL_VIDEODRIVER", "x11")
-			thread.run(func() {
+			thread.Run(func() {
 				status = int(C.SDL_InitSubSystem(C.Uint32(flags)))
 			})
 			if status != 0 {
@@ -264,7 +276,7 @@ var currentVideoSurface *Surface = nil
 // of the returned surface, as it will be done automatically by sdl.Quit.
 func SetVideoMode(w int, h int, bpp int, flags uint32) *Surface {
 	var screen *Surface
-	thread.run(func() {
+	thread.Run(func() {
 		screen = setVideoMode(w, h, bpp, flags)
 	})
 	return screen
@@ -752,7 +764,7 @@ func (event *Event) poll() bool {
 // the global threadlock.
 func (event *Event) pollThread() bool {
 	var status bool
-	thread.run(func() {
+	thread.Run(func() {
 		status = event.poll()
 	})
 	return status
