@@ -257,8 +257,3 @@ func GetTicks() uint32 {
 	GlobalMutex.Unlock()
 	return t
 }
-
-// Waits a specified number of milliseconds before returning.
-func Delay(ms uint32) {
-	time.Sleep(time.Duration(ms) * time.Millisecond)
-}
