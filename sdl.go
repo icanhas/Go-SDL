@@ -1,10 +1,6 @@
 /*
-A binding of SDL and SDL_image.
-
-The binding works in pretty much the same way as it does in C, although
-some of the functions have been altered to give them an object-oriented
-flavor (eg. Rather than sdl.Flip(surface) it's surface.Flip() )
-*/
+Package sdl provides an interface to the core SDL library.
+ */
 package sdl
 
 // #cgo CFLAGS: -D_REENTRANT
@@ -18,7 +14,6 @@ package sdl
 // #include <SDL/SDL.h>
 // static void SetError(const char* description){SDL_SetError("%s",description);}
 import "C"
-
 import (
 	"os"
 	"runtime"
