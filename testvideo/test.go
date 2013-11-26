@@ -118,7 +118,7 @@ func main() {
 				}
 			}
 			var p Point
-			sdl.GetMouseState(&p.x, &p.y)
+			p.x, p.y, _ = sdl.GetMouseState()
 			worm_in <- p
 			screen.Flip()
 		case _event := <-sdl.Events:

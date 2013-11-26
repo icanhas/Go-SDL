@@ -63,15 +63,23 @@ func GetKeyName(key Key) string {
 // Mouse
 //
 
-// Retrieves the current state of the mouse.
-func GetMouseState(x, y *int) uint32 {
-	return uint32(C.SDL_GetMouseState((*C.int)(unsafe.Pointer(x)), (*C.int)(unsafe.Pointer(y))))
+// Returns the current mouse coordinates and a bitmask of the current
+// button state.
+func GetMouseState() (x int, y int, buttons uint32) {
+	var xx, yy C.int
+
+	bs := uint32(C.SDL_GetMouseState(&xx, &yy))
+	return int(xx), int(yy), uint32(bs)
 }
 
-// Retrieves the current state of the mouse relative to the last time this
-// function was called.
-func GetRelativeMouseState(x, y *int) uint32 {
-	return uint32(C.SDL_GetRelativeMouseState((*C.int)(unsafe.Pointer(x)), (*C.int)(unsafe.Pointer(y))))
+// Returns the mouse coordinates relative to the last time this
+// function was called (or relative to event initialisation if this function
+// has not been called before), and a bitmask of the current button state.
+func GetRelativeMouseState() (x int, y int, buttons uint32) {
+	var xx, yy C.int
+
+	bs := uint32(C.SDL_GetRelativeMouseState(&xx, &yy))
+	return int(xx), int(yy), uint32(bs)
 }
 
 // Toggle whether or not the cursor is shown on the screen.
