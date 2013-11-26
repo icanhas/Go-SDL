@@ -57,7 +57,7 @@ func wrap(cSurface *C.SDL_Surface) *Surface {
 
 	if cSurface != nil {
 		var surface Surface
-		surface.SetCSurface(unsafe.Pointer(cSurface))
+		surface.setCSurface(unsafe.Pointer(cSurface))
 		s = &surface
 	} else {
 		s = nil
@@ -66,8 +66,7 @@ func wrap(cSurface *C.SDL_Surface) *Surface {
 	return s
 }
 
-// FIXME: Ideally, this should NOT be a public function, but it is needed in the package "ttf" ...
-func (s *Surface) SetCSurface(cSurface unsafe.Pointer) {
+func (s *Surface) setCSurface(cSurface unsafe.Pointer) {
 	s.cSurface = (*C.SDL_Surface)(cSurface)
 	s.reload()
 }
@@ -111,6 +110,10 @@ var (
 	startPoll sync.Once
 	thread    Threadbound
 )
+
+func NewThreadbound() Threadbound {
+	return make(chan func())
+}
 
 // Drain blocks the calling goroutine until tb is closed, and any
 // functions that are queued will be executed on that goroutine's system

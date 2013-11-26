@@ -38,6 +38,9 @@ func worm(in <-chan Point, out chan<- Point, draw chan<- Point) {
 func main() {
 	log.SetFlags(0)
 	var joy *sdl.Joystick
+	tb := sdl.NewThreadbound()
+	sdl.SetThreadbound(tb)
+	go tb.Drain()
 	if sdl.Init(sdl.INIT_EVERYTHING) != 0 {
 		log.Fatal(sdl.GetError())
 	}
@@ -156,6 +159,7 @@ func main() {
 	if sdl.JoystickOpened(0) > 0 {
 		joy.Close()
 	}
+	tb.Close()
 	image.Free()
 	sdl.Quit()
 }
