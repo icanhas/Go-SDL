@@ -12,17 +12,16 @@ import (
 	"unsafe"
 )
 
-var events chan interface{} = make(chan interface{})
-
 // This channel delivers SDL events. Each object received from this channel
 // has one of the following types: sdl.QuitEvent, sdl.KeyboardEvent,
 // sdl.MouseButtonEvent, sdl.MouseMotionEvent, sdl.ActiveEvent,
 // sdl.ResizeEvent, sdl.JoyAxisEvent, sdl.JoyButtonEvent, sdl.JoyHatEvent,
 // sdl.JoyBallEvent
+var events = make(chan interface{})
 var Events <-chan interface{} = events
 
-// Polling interval, in milliseconds
-const poll_interval_ms = 10
+// Polling interval
+const pollinterval = time.Second / 200
 
 // Polls for currently pending events
 func (event *Event) poll() bool {
@@ -38,7 +37,7 @@ func (event *Event) poll() bool {
 }
 
 // pollThread does the polling of events in the thread associated with
-// the global threadlock.
+// the global threadbound.
 func (event *Event) pollThread() bool {
 	var status bool
 	thread.Run(func() {
@@ -50,8 +49,6 @@ func (event *Event) pollThread() bool {
 // Polls SDL events in periodic intervals.
 // This function does not return.
 func pollEvents() {
-	// It is more efficient to create the event-object here once,
-	// rather than multiple times within the loop
 	event := &Event{}
 	for {
 		for event.pollThread() {
@@ -78,6 +75,6 @@ func pollEvents() {
 				events <- *(*ResizeEvent)(unsafe.Pointer(event))
 			}
 		}
-		time.Sleep(poll_interval_ms * 1e6)
+		time.Sleep(pollinterval)
 	}
 }
