@@ -25,27 +25,25 @@ func SetVideoMode(w int, h int, bpp int, flags uint32) *Surface {
 }
 
 func setVideoMode(w int, h int, bpp int, flags uint32) *Surface {
-	//GlobalMutex.Lock()
 	screen := C.SDL_SetVideoMode(C.int(w), C.int(h), C.int(bpp), C.Uint32(flags))
 	currentVideoSurface = wrap(screen)
-	//GlobalMutex.Unlock()
 	return currentVideoSurface
 }
 
 // Returns a pointer to the current display surface.
 func GetVideoSurface() *Surface {
-	//GlobalMutex.Lock()
+	GlobalMutex.Lock()
 	surface := currentVideoSurface
-	//GlobalMutex.Unlock()
+	GlobalMutex.Unlock()
 	return surface
 }
 
 // Checks to see if a particular video mode is supported.  Returns 0 if not
 // supported, or the bits-per-pixel of the closest available mode.
 func VideoModeOK(width int, height int, bpp int, flags uint32) int {
-	//GlobalMutex.Lock()
+	GlobalMutex.Lock()
 	status := int(C.SDL_VideoModeOK(C.int(width), C.int(height), C.int(bpp), C.Uint32(flags)))
-	//GlobalMutex.Unlock()
+	GlobalMutex.Unlock()
 	return status
 }
 
@@ -171,11 +169,9 @@ func WM_SetCaption(title, icon string) {
 	ctitle := C.CString(title)
 	cicon := C.CString(icon)
 
-	//GlobalMutex.Lock()
 	thread.Run(func() {
 		C.SDL_WM_SetCaption(ctitle, cicon)
 	})
-	//GlobalMutex.Unlock()
 
 	C.free(unsafe.Pointer(ctitle))
 	C.free(unsafe.Pointer(cicon))
@@ -183,40 +179,41 @@ func WM_SetCaption(title, icon string) {
 
 // Sets the icon for the display window.
 func WM_SetIcon(icon *Surface, mask *uint8) {
-	//GlobalMutex.Lock()
 	thread.Run(func() {
 		C.SDL_WM_SetIcon(icon.cSurface, (*C.Uint8)(mask))
 	})
-	//GlobalMutex.Unlock()
 }
 
 // Minimizes the window
 func WM_IconifyWindow() int {
-	//GlobalMutex.Lock()
-	status := int(C.SDL_WM_IconifyWindow())
-	//GlobalMutex.Unlock()
+	var status int
+	thread.Run(func() {
+		status = int(C.SDL_WM_IconifyWindow())
+	})
 	return status
 }
 
 // Toggles fullscreen mode
 func WM_ToggleFullScreen(surface *Surface) int {
-	//GlobalMutex.Lock()
-	status := int(C.SDL_WM_ToggleFullScreen(surface.cSurface))
-	//GlobalMutex.Unlock()
+	var status int
+	thread.Run(func() {
+		status = int(C.SDL_WM_ToggleFullScreen(surface.cSurface))
+	})
 	return status
 }
 
 // Swaps OpenGL framebuffers/Update Display.
 func GL_SwapBuffers() {
-	//GlobalMutex.Lock()
-	C.SDL_GL_SwapBuffers()
-	//GlobalMutex.Unlock()
+	thread.Run(func() {
+		C.SDL_GL_SwapBuffers()
+	})
 }
 
 func GL_SetAttribute(attr int, value int) int {
-	//GlobalMutex.Lock()
-	status := int(C.SDL_GL_SetAttribute(C.SDL_GLattr(attr), C.int(value)))
-	//GlobalMutex.Unlock()
+	var status int
+	thread.Run(func() {
+		status = int(C.SDL_GL_SetAttribute(C.SDL_GLattr(attr), C.int(value)))
+	})
 	return status
 }
 
