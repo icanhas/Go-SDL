@@ -44,6 +44,7 @@ func main() {
 	if sdl.Init(sdl.INIT_EVERYTHING) != 0 {
 		log.Fatal(sdl.GetError())
 	}
+	println("Init ok")
 	if sdl.NumJoysticks() > 0 {
 		joy = sdl.JoystickOpen(0)
 		if joy != nil {
@@ -61,6 +62,7 @@ func main() {
 	if screen == nil {
 		log.Fatal(sdl.GetError())
 	}
+	println("SetVideoMode ok")
 
 	vidinfo := sdl.GetVideoInfo()
 	println("HW_available = ", vidinfo.HW_available)
@@ -68,7 +70,9 @@ func main() {
 	println("Video_mem = ", vidinfo.Video_mem, "kb")
 
 	sdl.EnableUNICODE(1)
+	println("EnableUNICODE ok")
 	sdl.WM_SetCaption("sdltest", "")
+	println("SetCaption ok")
 
 	W := uint16(64)
 	H := uint16(64)
@@ -76,13 +80,16 @@ func main() {
 	image.FillRect(&sdl.Rect{0, 0, W, H}, 0xff00ff33)
 	image.FillRect(&sdl.Rect{8, 8, W-16, H-16}, 0xff00ff55)
 	image.FillRect(&sdl.Rect{16, 16, W-32, H-32}, 0xff00ff77)
+	println("created surface")
 	sdl.WM_SetIcon(image, nil)
+	println("WM_SetIcon ok")
 
 	running := true
 
 	if sdl.GetKeyName(270) != "[+]" {
 		log.Fatal("GetKeyName broken")
 	}
+	println("GetKeyName ok")
 
 	worm_in := make(chan Point)
 	draw := make(chan Point, 64)
@@ -118,6 +125,8 @@ func main() {
 			switch e := _event.(type) {
 			default:
 				println("unknown event")
+			case sdl.ActiveEvent:
+				println("window made active")
 			case sdl.QuitEvent:
 				running = false
 			case sdl.KeyboardEvent:
@@ -134,6 +143,7 @@ func main() {
 				println()
 				fmt.Printf("Type: %02x Which: %02x State: %02x Pad: %02x\n", e.Type, e.Which, e.State, e.Pad0[0])
 				fmt.Printf("Scancode: %02x Sym: %08x Mod: %04x Unicode: %04x\n", e.Keysym.Scancode, e.Keysym.Sym, e.Keysym.Mod, e.Keysym.Unicode)
+			case sdl.MouseMotionEvent:
 			case sdl.MouseButtonEvent:
 				if e.Type == sdl.MOUSEBUTTONDOWN {
 					println("Click:", e.X, e.Y)
