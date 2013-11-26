@@ -23,7 +23,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"time"
 	"unsafe"
 )
 
@@ -146,7 +145,7 @@ func SetThreadbound(tb Threadbound) {
 // Initializes SDL.
 func Init(flags uint32) int {
 	var status int
-	
+
 	GlobalMutex.Lock()
 	thread.Run(func() {
 		status = int(C.SDL_Init(C.Uint32(flags)))
@@ -183,7 +182,7 @@ func Quit() {
 // Initializes subsystems.
 func InitSubSystem(flags uint32) int {
 	var status int
-	
+
 	GlobalMutex.Lock()
 	defer GlobalMutex.Unlock()
 	thread.Run(func() {
