@@ -1,6 +1,6 @@
 /*
 Package sdl provides an interface to the core SDL library.
- */
+*/
 package sdl
 
 // #cgo CFLAGS: -D_REENTRANT
